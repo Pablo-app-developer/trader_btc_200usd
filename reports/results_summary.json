@@ -1,0 +1,29 @@
+{
+    "BTC": {
+        "initial_balance": 10000,
+        "final_balance": 10310.512754026782,
+        "return_pct": 3.105127540267822,
+        "sharpe_ratio": 2.4680343326223637,
+        "max_drawdown_pct": 0.46718116297505485,
+        "total_trades": 212,
+        "chart_path": "reports/backtest_btc_gold.png"
+    },
+    "SOL": {
+        "initial_balance": 10000,
+        "final_balance": 10837.019682310744,
+        "return_pct": 8.370196823107436,
+        "sharpe_ratio": 1.0615916375350078,
+        "max_drawdown_pct": 3.679275709553711,
+        "total_trades": 202,
+        "chart_path": "reports/backtest_sol_elite.png"
+    },
+    "ETH": {
+        "initial_balance": 10000,
+        "final_balance": 10132.884665893876,
+        "return_pct": 1.3288466589387644,
+        "sharpe_ratio": 0.8885192680896007,
+        "max_drawdown_pct": 0.8849892359480296,
+        "total_trades": 162,
+        "chart_path": "reports/backtest_eth_elite.png"
+    }
+}

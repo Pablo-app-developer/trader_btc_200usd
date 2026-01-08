@@ -1,0 +1,23 @@
+# .gitignore
+# Credenciales y configuraciones sensibles
+.env
+*.env
+secrets.json
+config.py
+*.key
+*.pem
+*.crt
+
+# Archivos de caché / compilados
+__pycache__/
+*.pyc
+*.pyo
+
+# Modelos grandes (no subirlos al repo)
+models/PRODUCTION/
+models/ARCHIVE/
+
+# Logs y artefactos temporales
+tensorboard_logs/
+reports/*.png
+*.log

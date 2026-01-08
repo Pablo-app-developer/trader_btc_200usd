@@ -1,0 +1,44 @@
+{
+    "BTC": {
+        "Phase 6 (Rescue)": {
+            "return": 2.49,
+            "drawdown": 0.28
+        },
+        "Phase 7 (Evolution)": {
+            "return": 2.88,
+            "drawdown": 0.3
+        },
+        "Phase 8 (Production)": {
+            "return": 3.11,
+            "drawdown": 0.47
+        }
+    },
+    "SOL": {
+        "Phase 6 (Rescue)": {
+            "return": 9.37,
+            "drawdown": 1.63
+        },
+        "Phase 7 (Evolution)": {
+            "return": 2.43,
+            "drawdown": 5.3
+        },
+        "Phase 8 (Production)": {
+            "return": 3.93,
+            "drawdown": 0.35
+        }
+    },
+    "ETH": {
+        "Phase 6 (Rescue)": {
+            "return": -17.58,
+            "drawdown": 17.91
+        },
+        "Phase 7 (Evolution)": {
+            "return": 3.22,
+            "drawdown": 1.0
+        },
+        "Phase 8 (Production)": {
+            "return": 2.49,
+            "drawdown": 0.72
+        }
+    }
+}
