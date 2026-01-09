@@ -1,84 +1,137 @@
 # BOT_ML_ANTIGRAVITY
 
-## 📈 Overview
-A multi‑asset reinforcement‑learning trading bot built with **Stable‑Baselines3 PPO**.  It supports Bitcoin (BTC), Solana (SOL) and Ethereum (ETH) with asset‑specific environment parameters and risk‑management filters (EMA‑200 wall, trailing‑stop, cooldown, EMA/volatility penalties).
+## 📈 Descripción General
+Un bot de trading multi-activo basado en **Aprendizaje por Refuerzo (Reinforcement Learning)** utilizando **Stable-Baselines3 PPO**. Soporta Bitcoin (BTC), Solana (SOL) y Ethereum (ETH) con parámetros de entorno específicos por activo y controles de riesgo de grado institucional (Filtro de tendencia EMA-200, Stop Loss, Trailing Stop, Cooldown y penalizaciones por volatilidad).
 
-## 🚀 Features
-- **Modular asset configuration** – `train_production.py` automatically selects hyper‑parameters and environment settings per asset.
-- **Institutional‑grade risk controls** – EMA‑200 trend filter, stop‑loss, trailing‑stop, risk‑aversion, EMA/volatility penalties.
-- **Hyper‑parameter optimization** – Optuna‑derived “Diamond” hyper‑parameters stored in `best_hyperparams_*.json`.
-- **Comprehensive reporting** – `generate_report.py` produces `ESTADO_DE_LAS_PRUEBAS.md` with performance tables and equity‑curve images.
-- **Versioned evolution** – `HISTORIAL_DE_FASES.md` documents every strategic phase.
+## 🚀 Características
+- **Configuración modular de activos**: `train_production.py` selecciona automáticamente los hiperparámetros y la configuración del entorno para cada criptomoneda.
+- **Control de riesgo institucional**: Incluye muros de tendencia, stops dinámicos y aversión al riesgo adaptativa.
+- **Optimización de Hiperparámetros**: Utiliza Optuna para encontrar la configuración "Diamante", guardada en `best_hyperparams_*.json`.
+- **Reportes Completos**: `generate_report.py` genera `ESTADO_DE_LAS_PRUEBAS.md` con tablas de rendimiento y curvas de equidad.
+- **Evolución Versionada**: `HISTORIAL_DE_FASES.md` documenta cada cambio estratégico paso a paso.
+- **Soporte Docker**: Despliegue agnóstico a la plataforma (Windows/Linux/Mac) con `docker-compose`.
 
-## 📦 Installation
+## 📦 Instalación
+
+### Requisitos Previos
+- Python 3.10+
+- Git
+
 ```bash
-# Clone the repo
+# 1. Clonar el repositorio
 git clone https://github.com/Pablo-app-developer/BOT_ML_ANTIGRAVITY.git
 cd BOT_ML_ANTIGRAVITY
 
-# Create a virtual environment (recommended)
+# 2. Crear un entorno virtual (Recomendado)
 python -m venv .venv
-source .venv/Scripts/activate  # Windows
-# or: source .venv/bin/activate  # Linux/macOS
 
-# Install dependencies
+# Activar en Windows:
+.venv\Scripts\activate
+# Activar en Linux/Mac:
+# source .venv/bin/activate
+
+# 3. Instalar dependencias
 pip install -r requirements.txt
+pip install -r requirements-dev.txt  # Para desarrollo y tests
 ```
-> **Note:** The repository contains a `.gitignore` that excludes large model files and any credential files.
 
-## 🛠️ Usage
-### 1️⃣ Train a model for an asset
-The training script is now modular and uses `config/assets.py` for parameters.
-```bash
-python train_production.py BTC                    # Standard Gold
-python train_production.py SOL                    # Elite Hybrid
-python train_production.py ETH --steps 200000     # Elite Rescue (Custom steps)
-```
-The script will:
-1. Load config from `config/assets.py`.
-2. Load hyper-parameters from `best_hyperparams_<asset>.json`.
-3. Train/Retrain the model using the latest available checkpoint.
-4. Save the model to `models/PRODUCTION/<ASSET>/`.
+> **Nota:** El repositorio incluye un `.gitignore` que excluye archivos de modelos pesados (.zip) y credenciales sensibles para seguridad.
 
-### 2️⃣ Backtest a trained model
+## 🛠️ Manual de Uso (Paso a Paso)
+
+### 1️⃣ Entrenar un Modelo (Modo Producción)
+El script es modular y carga la configuración desde `config/assets.py`. Si ya existe un modelo previo, hará **Transfer Learning** para mejorarlo.
+
+**Comandos:**
 ```bash
-python backtest.py BTC models/PRODUCTION/BTC/ppo_btc_final.zip backtest_btc_gold.png
-python backtest.py SOL models/PRODUCTION/SOL/ppo_sol_final.zip backtest_sol_elite.png
-python backtest.py ETH models/PRODUCTION/ETH/ppo_eth_final.zip backtest_eth_elite.png
+# Entrenar Bitcoin (Estrategia: Estándar de Oro - Conservadora)
+python train_production.py BTC
+
+# Entrenar Solana (Estrategia: Élite Híbrida - Agresiva >5%)
+python train_production.py SOL
+
+# Entrenar Ethereum (Estrategia: Élite Rescue - Equilibrada)
+# Puedes especificar pasos personalizados si deseas un entrenamiento más largo
+python train_production.py ETH --steps 200000
 ```
-### 3️⃣ Generate the summary report
+**¿Qué hace el script?**
+1. Carga los datos históricos (`datos_<activo>_15m_binance.csv`).
+2. Aplica los parámetros de riesgo específicos del activo.
+3. Carga el mejor modelo base disponible (o empieza de cero si no hay ninguno).
+4. Entrena durante los pasos configurados (150k por defecto).
+5. Guarda el modelo final en `models/PRODUCTION/<ACTIVO>/`.
+
+---
+
+### 2️⃣ Backtesting (Prueba con Datos Históricos)
+Una vez entrenado el modelo, debes validar su rendimiento simulando operaciones pasadas. El script calcula métricas profesionales: Retorno Total, **Sharpe Ratio**, **Sortino Ratio**, **Calmar Ratio** y **Duración del Drawdown**.
+
+**Comandos:**
+```bash
+# Probar Bitcoin
+python backtest.py BTC
+
+# Probar Solana
+python backtest.py SOL
+
+# Probar Ethereum
+python backtest.py ETH
+```
+Esto generará:
+- Un gráfico de la curva de equidad en `reports/backtest_<activo>_latest.png`.
+- Un resumen de métricas en la consola.
+- Datos crudos en `reports/results_summary.json`.
+
+---
+
+### 3️⃣ Generar Informe Ejecutivo
+Crea un resumen visual en Markdown con todos los resultados actuales.
+
 ```bash
 python generate_report.py
 ```
-
-## 🐳 Docker Support
-Run the bot in a containerized environment (ideal for servers).
-
-```bash
-# Build and run default (train BTC)
-docker-compose up --build
-
-# Run a specific command (e.g., train ETH)
-docker-compose run --rm bot python train_production.py ETH
-
-# Run Backtest inside Docker
-docker-compose run --rm bot python backtest.py ETH
-```
-To view training progress, open `http://localhost:6006` for TensorBoard (automatically started).
-
-## 📊 Current Results (Jan 2026)
-| Asset | Return | Sharpe | Max Drawdown | Trades | Final Balance |
-|------|--------|--------|--------------|--------|---------------|
-| **BTC** | **+3.11%** | **2.47** | **0.47%** | 212 | $10,310.51 |
-| **SOL** | **+8.37%** | **1.06** | **3.68%** | 202 | $10,837.02 |
-| **ETH** | **+1.33%** | **0.89** | **0.88%** | 162 | $10,132.88 |
-
-## 🧹 Clean‑up & Security
-- All credential files (`.env`, `secrets.json`, etc.) are ignored via `.gitignore`.
-- Large model checkpoints are also ignored; only the lightweight `best_hyperparams_*.json` files are versioned.
-
-## 📜 License
-This project is released under the **MIT License**. See `LICENSE` for details.
+El archivo generado es `ESTADO_DE_LAS_PRUEBAS.md`. Puedes abrirlo para ver una tabla comparativa y los gráficos.
 
 ---
-*Generated by Antigravity Agent – your AI‑powered development partner.*
+
+### 4️⃣ Optimización Avanzada (Opcional)
+Si quieres encontrar una mejor configuración de IA para ETH (o cualquier activo), usa el script de optimización evolutiva.
+
+```bash
+python optimize_eth.py
+```
+Esto ejecutará múltiples pruebas con **Optuna** y guardará los mejores parámetros en `best_hyperparams_eth.json`.
+
+---
+
+## 🐳 Uso con Docker (Servidores / Nube)
+Si prefieres no instalar Python localmente o vas a desplegar en un servidor VPS.
+
+```bash
+# 1. Construir e iniciar el contenedor (Entrena BTC por defecto)
+docker-compose up --build
+
+# 2. Entrenar un activo específico (ej. ETH) dentro del contenedor
+docker-compose run --rm bot python train_production.py ETH
+
+# 3. Ejecutar Backtest dentro del contenedor
+docker-compose run --rm bot python backtest.py ETH
+```
+Para ver el progreso del entrenamiento en tiempo real, abre tu navegador en `http://localhost:6006` (TensorBoard).
+
+## 📊 Resultados Actuales (Enero 2026)
+| Activo | Retorno | Sharpe | Max Drawdown | Trades | Balance Final |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **BTC** | **+3.11%** | **2.47** | **0.47%** | 212 | $10,310.51 |
+| **SOL** | **+8.37%** | **1.06** | **3.68%** | 202 | $10,837.02 |
+| **ETH** | **+2.19%** | **1.38** | **0.88%** | 162 | $10,219.00 |
+
+## 🧹 Seguridad y Limpieza
+- Todas las claves y archivos `.env` están ignorados por git.
+- Los modelos pesados no se suben al repositorio para mantenerlo ligero.
+
+## 📜 Licencia
+Este proyecto está bajo la Licencia **MIT**. Ver el archivo `LICENSE` para más detalles.
+
+---
+*Generado por Antigravity Agent - Tu socio de desarrollo IA.*
