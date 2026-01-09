@@ -19,11 +19,16 @@
     },
     "ETH": {
         "initial_balance": 10000,
-        "final_balance": 10132.884665893876,
-        "return_pct": 1.3288466589387644,
-        "sharpe_ratio": 0.8885192680896007,
-        "max_drawdown_pct": 0.8849892359480296,
-        "total_trades": 162,
-        "chart_path": "reports/backtest_eth_elite.png"
+        "final_balance": 10503.799315902967,
+        "total_trades": 748,
+        "chart_path": "reports/backtest_eth_latest.png",
+        "return_pct": 5.037993159029665,
+        "cagr": 3.47788551140209,
+        "sharpe": 1.4032523247074495,
+        "sortino": 0.3391188374475024,
+        "calmar": 1.8317042078436796,
+        "max_drawdown_pct": 1.8987156859219805,
+        "max_dd_duration_steps": 9418,
+        "max_dd_duration_days": 98.10416666666667
     }
 }
