@@ -53,6 +53,10 @@ class LiveTrader:
                 logger.error("❌ Yahoo Finance devolvió DataFrame vacío.")
                 return None, None
 
+            # YFinance columns might come as MultiIndex (Price, Ticker). Flatten them.
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
             # Reset index to get columns clean
             df = df.reset_index()
             

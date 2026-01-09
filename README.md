@@ -104,27 +104,65 @@ Esto ejecutará múltiples pruebas con **Optuna** y guardará los mejores parám
 
 ---
 
-## 🐳 Uso con Docker (Servidores / Nube)
-Si prefieres no instalar Python localmente o vas a desplegar en un servidor VPS.
+## 🐳 Despliegue en VPS (Guía Avanzada)
+
+### 1. Requisitos del Servidor
+- **Mínimo Absoluto**: 2 vCPU, 4GB RAM, 30GB Disco.
+- **Recomendado**: 50GB+ Disco para evitar problemas de espacio con Docker.
+
+### 2. Preparación (Optimización de Recursos)
+Si tienes un VPS pequeño (<4GB RAM), activa Swap antes de nada:
+```bash
+# Crear 2GB de memoria virtual
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+### 3. Instalación "Ligera" (Para servidores pequeños)
+Para ahorrar 2GB de espacio, usamos la versión CPU-Only de PyTorch.
+
+1. Editar `Dockerfile`:
+   Cambiar `COPY requirements.txt .` por `COPY requirements-server.txt requirements.txt`.
+2. O instalar manualmente en el Dockerfile:
+   ```dockerfile
+   RUN pip install --no-cache-dir -r requirements-server.txt
+   ```
+
+### 4. Lanzar en Producción (Live Trading)
+El bot descargará datos de Yahoo Finance para generar señales (evitando bloqueos de IP).
 
 ```bash
-# 1. Construir e iniciar el contenedor (Entrena BTC por defecto)
-docker-compose up --build
+# Modo Silencioso (Segundo plano)
+docker compose run -d --name trader_eth bot python run_live_trader.py ETH
 
-# 2. Entrenar un activo específico (ej. ETH) dentro del contenedor
-docker-compose run --rm bot python train_production.py ETH
-
-# 3. Ejecutar Backtest dentro del contenedor
-docker-compose run --rm bot python backtest.py ETH
+# Ver logs en vivo
+docker logs -f trader_eth
 ```
-Para ver el progreso del entrenamiento en tiempo real, abre tu navegador en `http://localhost:6006` (TensorBoard).
+
+## 🚨 Solución de Problemas (Troubleshooting)
+
+### "No space left on device"
+Docker consume mucho espacio al construir.
+1. **Limpiar todo**: `docker system prune -a --volumes -f`
+2. **Construir sin caché**: `docker compose build --no-cache`
+
+### "Service unavailable / Geo-blocking"
+Si tu VPS está en EE. UU., Binance bloqueará la conexión.
+- **Solución**: El script `run_live_trader.py` ahora usa `yfinance` automáticamente para evitar este problema.
+
+### "Killed" o "Exited (137)"
+El bot se quedó sin memoria RAM.
+- **Solución**: Aumenta el Swap o corre solo un bot a la vez.
 
 ## 📊 Resultados Actuales (Enero 2026)
 | Activo | Retorno | Sharpe | Max Drawdown | Trades | Balance Final |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **BTC** | **+3.11%** | **2.47** | **0.47%** | 212 | $10,310.51 |
 | **SOL** | **+8.37%** | **1.06** | **3.68%** | 202 | $10,837.02 |
-| **ETH** | **+2.19%** | **1.38** | **0.88%** | 162 | $10,219.00 |
+| **ETH** | **+5.04%** | **1.40** | **1.90%** | 748 | $10,503.80 |
 
 ## 🧹 Seguridad y Limpieza
 - Todas las claves y archivos `.env` están ignorados por git.
