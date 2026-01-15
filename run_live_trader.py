@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from stable_baselines3 import PPO
 from config import get_asset_config
+from torch.utils.tensorboard import SummaryWriter
 
 # Configuración de Logging
 logging.basicConfig(
@@ -27,6 +28,11 @@ class LiveTrader:
         
         self.config = get_asset_config(self.symbol)
         
+        # TensorBoard Logger (Gráficas estilo FTMO)
+        log_dir = f"tensorboard_logs/LIVE_{self.symbol}"
+        self.writer = SummaryWriter(log_dir)
+        logger.info(f"📊 TensorBoard activo en: {log_dir}")
+
         logger.info(f"🌍 Conectando a Yahoo Finance ({self.yahoo_ticker}) para evitar bloqueo Geo-IP...")
             
         # Cargar Modelo
@@ -36,6 +42,11 @@ class LiveTrader:
             
         logger.info(f"🧠 Cargando cerebro IA para {self.symbol}...")
         self.model = PPO.load(model_path)
+        
+        # Estado Interno
+        self.window_size = 60
+        self.current_position = 0 # 0: Nada, 1: Long
+        self.entry_price = 0.0
         
         # Prop Firm Tracking (Simulated $100k Account)
         self.sim_balance = 100000.0
@@ -61,7 +72,6 @@ class LiveTrader:
 
         # Calculate Metrics
         daily_drawdown = (self.daily_start_balance - current_equity) / self.daily_start_balance * 100
-        total_drawdown = (100000.0 - current_equity) / 100000.0 * 100
 
         if daily_drawdown > self.max_daily_loss:
             self.max_daily_loss = daily_drawdown
@@ -70,69 +80,10 @@ class LiveTrader:
         if daily_drawdown > 4.0:
             logger.warning(f"⚠️ PELIGRO PROP FIRM: Drawdown Diario al {daily_drawdown:.2f}% (Límite 5%)")
         
-        return daily_drawdown, total_drawdown
+        return daily_drawdown
 
-    def execute_trade(self, action, price):
-        """Simula la ejecución de la orden (Modo Señales) con Gestión de Riesgo."""
-        # 0: Hold, 1: Buy, 2: Sell
-        
-        # Timestamp actual
-        now_dt = datetime.now()
-        now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
-        now_ts = now_dt.timestamp()
-
-        # Update Equity Simulation (Floating PnL)
-        current_equity = self.sim_balance
-        if self.current_position == 1:
-            floating_pnl = (price - self.entry_price) / self.entry_price * self.sim_balance # Full leverage simulation
-            current_equity += floating_pnl
-            
-        # Check Prop Firm Rules
-        dd_daily, dd_total = self.check_prop_firm_rules(current_equity)
-
-        # 1. MECHANICAL STOP LOSS CHECK
-        if self.current_position == 1:
-            pnl_pct = (price - self.entry_price) / self.entry_price
-            if pnl_pct <= -self.stop_loss_pct:
-                logger.warning(f"🛡️ STOP LOSS ACTIVADO a ${price:.2f} (Drop: {pnl_pct*100:.2f}%)")
-                action = 2 # Force Sell
-        
-        # 2. COOLDOWN CHECK
-        if action == 1 and self.current_position == 0:
-            time_since_sell = now_ts - self.last_sell_time
-            if time_since_sell < self.cooldown_seconds:
-                hours_wait = (self.cooldown_seconds - time_since_sell) / 3600
-                if hours_wait < 0.1: # Only log if close just to reduce noise? No, log always for debug
-                    logger.info(f"❄️ Enfriamiento activo. Ignorando COMPRA. Espera {hours_wait:.2f}h más.")
-                return # Abort trade
-
-            logger.info(f"🟢 [COMPRA] SEÑAL DETECTADA a ${price:.2f} ({now_str})")
-            logger.info(f"   👉 Sugerencia: Abrir LONG en {self.symbol}")
-            self.current_position = 1
-            self.entry_price = price
-            
-        elif action == 2 and self.current_position > 0:
-            logger.info(f"🔴 [VENTA] SEÑAL DETECTADA a ${price:.2f} ({now_str})")
-            pnl_pct = (price - self.entry_price) / self.entry_price 
-            
-            # Update Sim Balance
-            pnl_amount = self.sim_balance * pnl_pct
-            self.sim_balance += pnl_amount
-            
-            if pnl_amount > 0: self.wins += 1
-            else: self.losses += 1
-            
-            win_rate = (self.wins / (self.wins + self.losses)) * 100 if (self.wins+self.losses) > 0 else 0
-            
-            logger.info(f"   💰 Cierre. PnL: {pnl_pct*100:.2f}% | Balance Sim: ${self.sim_balance:.2f}")
-            logger.info(f"   📊 ESTADO: WinRate: {win_rate:.1f}% | DD Diario Max: {self.max_daily_loss:.2f}%")
-
-            self.current_position = 0
-            self.last_sell_time = now_ts # Start Cooldown Clock
-            
-        else:
-            # Reducir ruido: Solo loggear Hold ocasionalmente o si cambia algo
-            pass        """Descarga las últimas velas para alimentar al modelo usando Yahoo Finance."""
+    def fetch_market_data(self):
+        """Descarga las últimas velas para alimentar al modelo usando Yahoo Finance."""
         try:
             # Download recent data (enough for window_size + indicators)
             # interval='15m' is supported by yfinance for last 60 days
@@ -209,27 +160,75 @@ class LiveTrader:
         return obs
 
     def execute_trade(self, action, price):
-        """Simula la ejecución de la orden (Modo Señales)."""
+        """Simula la ejecución de la orden (Modo Señales) con Gestión de Riesgo."""
         # 0: Hold, 1: Buy, 2: Sell
         
         # Timestamp actual
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_dt = datetime.now()
+        now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+        now_ts = now_dt.timestamp()
+        step = int(now_ts)
 
+        # Update Equity Simulation (Floating PnL)
+        current_equity = self.sim_balance
+        if self.current_position == 1:
+            floating_pnl = (price - self.entry_price) / self.entry_price * self.sim_balance # Full leverage simulation
+            current_equity += floating_pnl
+            
+        # Check Prop Firm Rules
+        self.check_prop_firm_rules(current_equity)
+
+        # 1. MECHANICAL STOP LOSS CHECK
+        if self.current_position == 1:
+            pnl_pct = (price - self.entry_price) / self.entry_price
+            if pnl_pct <= -self.stop_loss_pct:
+                logger.warning(f"🛡️ STOP LOSS ACTIVADO a ${price:.2f} (Drop: {pnl_pct*100:.2f}%)")
+                action = 2 # Force Sell
+        
+        # 2. COOLDOWN CHECK
         if action == 1 and self.current_position == 0:
-            logger.info(f"🟢 [COMPRA] SEÑAL DETECTADA a ${price:.2f} ({now})")
+            time_since_sell = now_ts - self.last_sell_time
+            if time_since_sell < self.cooldown_seconds:
+                hours_wait = (self.cooldown_seconds - time_since_sell) / 3600
+                if hours_wait < 0.1: # Only log if close just to reduce noise? No, log always for debug
+                    logger.info(f"❄️ Enfriamiento activo. Ignorando COMPRA. Espera {hours_wait:.2f}h más.")
+                return # Abort trade
+
+            logger.info(f"🟢 [COMPRA] SEÑAL DETECTADA a ${price:.2f} ({now_str})")
             logger.info(f"   👉 Sugerencia: Abrir LONG en {self.symbol}")
             self.current_position = 1
             self.entry_price = price
             
         elif action == 2 and self.current_position > 0:
-            logger.info(f"🔴 [VENTA] SEÑAL DETECTADA a ${price:.2f} ({now})")
-            pnl = (price - self.entry_price) / self.entry_price * 100
-            logger.info(f"   💰 Cierre Sugerido. PnL Teórico: {pnl:.2f}%")
+            logger.info(f"🔴 [VENTA] SEÑAL DETECTADA a ${price:.2f} ({now_str})")
+            pnl_pct = (price - self.entry_price) / self.entry_price 
+            
+            # Update Sim Balance
+            pnl_amount = self.sim_balance * pnl_pct
+            self.sim_balance += pnl_amount
+            
+            if pnl_amount > 0: self.wins += 1
+            else: self.losses += 1
+            
+            win_rate = (self.wins / (self.wins + self.losses)) * 100 if (self.wins+self.losses) > 0 else 0
+            
+            logger.info(f"   💰 Cierre. PnL: {pnl_pct*100:.2f}% | Balance Sim: ${self.sim_balance:.2f}")
+            logger.info(f"   📊 ESTADO: WinRate: {win_rate:.1f}% | DD Diario Max: {self.max_daily_loss:.2f}%")
+
+            # TENSORBOARD GRAPHING
+            try:
+                self.writer.add_scalar("FTMO_Sim/Balance", self.sim_balance, step)
+                self.writer.add_scalar("FTMO_Sim/WinRate", win_rate, step)
+                self.writer.add_scalar("FTMO_Risk/DailyDrawdown", self.max_daily_loss, step)
+                self.writer.flush()
+            except Exception as e:
+                logger.error(f"Error escribiendo a TensorBoard: {e}")
+
             self.current_position = 0
+            self.last_sell_time = now_ts # Start Cooldown Clock
             
         else:
             # Reducir ruido: Solo loggear Hold ocasionalmente o si cambia algo
-            # logger.info(f"💤 Hold a ${price:.2f}") 
             pass
 
     def run(self):
