@@ -12,10 +12,10 @@ ASSETS = {
     "BTC": AssetConfig(
         name="BTC",
         env_params={
-            "cooldown_steps": 2,
-            "stop_loss": 0.05,
-            "trailing_stop_drop": 0.10,
-            "risk_aversion": 1.6,
+            "cooldown_steps": 4,
+            "stop_loss": 0.035,
+            "trailing_stop_drop": 0.02,
+            "risk_aversion": 1.5,
             "ema_penalty": 0.005,
             "vol_penalty": 0.02
         }
