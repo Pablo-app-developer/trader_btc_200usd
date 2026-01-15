@@ -1,0 +1,9 @@
+{
+    "ema_span": 174,
+    "macd_fast": 16,
+    "macd_slow": 33,
+    "macd_signal": 14,
+    "stop_loss": 0.056820101931384794,
+    "ts_trigger": 0.08947330250002022,
+    "ts_dist": 0.010026764954915
+}

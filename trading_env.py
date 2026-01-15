@@ -12,7 +12,8 @@ class TradingEnv(gym.Env):
 
     def __init__(self, df, initial_balance=10000, commission=0.0001, window_size=60, 
                  cooldown_steps=8, stop_loss=0.02, trailing_stop_threshold=0.03, 
-                 trailing_stop_drop=0.015, risk_aversion=2.5, ema_penalty=0.05, vol_penalty=0.05):
+                 trailing_stop_drop=0.015, risk_aversion=2.5, ema_penalty=0.05, 
+                 vol_penalty=0.05, position_size_pct=0.40):
         super(TradingEnv, self).__init__()
 
         self.df = df.reset_index(drop=True)
@@ -28,6 +29,7 @@ class TradingEnv(gym.Env):
         self.risk_aversion = risk_aversion
         self.ema_penalty = ema_penalty
         self.vol_penalty = vol_penalty
+        self.position_size_pct = position_size_pct
 
         # Action Space: 0 = Hold, 1 = Buy, 2 = Sell
         self.action_space = spaces.Discrete(3)
@@ -39,17 +41,21 @@ class TradingEnv(gym.Env):
         # 2. RSI (Normalized 0-1)
         self.df['RSI_Norm'] = self.df['RSI'] / 100.0
         
-        # 3. Bollinger %B
-        self.df['BB_Pct'] = (self.df['Close'] - self.df['BBL_20_2.0']) / (self.df['BBU_20_2.0'] - self.df['BBL_20_2.0'])
-        self.df['BB_Pct'] = self.df['BB_Pct'].fillna(0.5)
+        # 3. MACD (Momentum Architecture) - REPLACES BOLINGER
+        ema_12 = self.df['Close'].ewm(span=12, adjust=False).mean()
+        ema_26 = self.df['Close'].ewm(span=26, adjust=False).mean()
+        macd = ema_12 - ema_26
+        signal = macd.ewm(span=9, adjust=False).mean()
+        self.df['MACD_Hist'] = (macd - signal) / self.df['Close'] # Normalized
+        self.df['MACD_Hist'] = self.df['MACD_Hist'].fillna(0)
         
         # 4. EMA Distances (Short & Long Term)
         self.df['EMA_20_Dist'] = (self.df['Close'] / self.df['EMA_20']) - 1
         self.df['EMA_50_Dist'] = (self.df['Close'] / self.df['EMA_50']) - 1
         self.df['EMA_200_Dist'] = (self.df['Close'] / self.df['EMA_200']) - 1 # MARKET REGIME
 
-        # Select Features
-        self.obs_cols = ['Log_Ret', 'RSI_Norm', 'BB_Pct', 'EMA_20_Dist', 'EMA_50_Dist', 'EMA_200_Dist']
+        # Select Features (MOMENTUM FOCUSED)
+        self.obs_cols = ['Log_Ret', 'RSI_Norm', 'MACD_Hist', 'EMA_20_Dist', 'EMA_50_Dist', 'EMA_200_Dist']
         self.n_features = len(self.obs_cols) + 2 # +2 for account
         
         # Pre-compute Data Matrix
@@ -71,6 +77,7 @@ class TradingEnv(gym.Env):
         self.entry_price = 0 # Track Entry Price for Stop Loss
         self.total_shares_sold = 0
         self.total_sales_value = 0
+        self.total_trades = 0
         
         self.current_step = self.window_size
         self.end_step = len(self.df) - 1
@@ -164,8 +171,8 @@ class TradingEnv(gym.Env):
 
         if action == 1: # Buy
             if self.balance > 10: 
-                # Invest 40% (From Phase 5)
-                amount_to_invest = self.balance * 0.40
+                # Invest configurable % (Default 40%, Challenge 90%+)
+                amount_to_invest = self.balance * self.position_size_pct
                 if amount_to_invest < 10: amount_to_invest = self.balance
                 
                 shares_bought = (amount_to_invest / current_price) * (1 - self.commission)
@@ -180,6 +187,7 @@ class TradingEnv(gym.Env):
                 self.shares_held += shares_bought
                 self.highest_price_since_entry = current_price
                 trade_executed = True
+                self.total_trades += 1
             else:
                 invalid_action_penalty = -0.1
                 
@@ -195,7 +203,7 @@ class TradingEnv(gym.Env):
                 trade_executed = True
                 
                 # Trade Completion Reward (Profit Factor)
-                trade_pnl = (sale_value - (self.balance - sale_value) * 0.40) / ((self.balance - sale_value) * 0.40) # Rough estimate
+                trade_pnl = (sale_value - (self.balance - sale_value) * self.position_size_pct) / ((self.balance - sale_value) * self.position_size_pct) # Rough estimate
                 # Let's use a cleaner PnL:
                 # We'll stick to net worth change but add 
                 reward += 0.05 # Base Reward for closing a trade
@@ -261,7 +269,8 @@ class TradingEnv(gym.Env):
             "net_worth": self.net_worth,
             "max_net_worth": self.max_net_worth,
             "shares_held": self.shares_held,
-            "trade_executed": trade_executed
+            "trade_executed": trade_executed,
+            "total_trades": self.total_trades
         }
         
         return self._next_observation(), reward, done, truncated, info
