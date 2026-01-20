@@ -1,0 +1,15 @@
+# Lightweight Python image (only ~50MB base)
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy only necessary files
+COPY sol_sniper_bot.py .
+COPY best_breakout_sol.json .
+
+# Install only essential trading dependencies (no ML libraries)
+RUN pip install --no-cache-dir ccxt==4.2.25 pandas==2.1.4 numpy==1.26.3
+
+# Run bot
+CMD ["python3", "sol_sniper_bot.py"]
