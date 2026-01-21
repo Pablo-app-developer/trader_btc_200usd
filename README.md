@@ -134,6 +134,34 @@ Para ahorrar 2GB de espacio, usamos la versión CPU-Only de PyTorch.
 ### 4. Lanzar en Producción (Live Trading)
 El bot descargará datos de Yahoo Finance para generar señales (evitando bloqueos de IP).
 
+#### 📡 Conexión Rápida al VPS
+
+**Desde Windows (PowerShell):**
+```powershell
+.\connect_vps.ps1
+```
+
+**Desde Linux/Mac:**
+```bash
+./connect_vps.sh
+```
+
+#### 🚀 Despliegue Automático
+
+Para sincronizar tu código local con el VPS y reiniciar el bot:
+
+**Desde Windows:**
+```powershell
+.\deploy_to_vps.ps1
+```
+
+**Desde Linux/Mac:**
+```bash
+./deploy_to_vps.sh
+```
+
+#### 🎯 Lanzar Bot Manualmente
+
 ```bash
 # Modo Silencioso (Segundo plano)
 docker compose run -d --name trader_eth bot python run_live_trader.py ETH
@@ -141,6 +169,9 @@ docker compose run -d --name trader_eth bot python run_live_trader.py ETH
 # Ver logs en vivo
 docker logs -f trader_eth
 ```
+
+**💡 Tip:** Para más información sobre el VPS, consulta `VPS_INFO.md`
+
 
 ## 🚨 Solución de Problemas (Troubleshooting)
 
@@ -171,7 +202,7 @@ docker logs -f --tail 50 trader_eth
 
 ### 2. Nivel Estratégico (Entrenamiento)
 Para vigilar la evolución de la inteligencia del bot (Gráficas de retorno).
-- Accede desde tu navegador: `http://<TU_IP_VPS>:6006`
+- Accede desde tu navegador: `http://107.174.133.37:6006`
 - Fíjate en **`rollout/ep_rew_mean`** (Debe ser ascendente 📈).
 
 ### 3. Nivel Forense (Auditoría)

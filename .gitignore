@@ -21,3 +21,10 @@ models/ARCHIVE/
 tensorboard_logs/
 reports/*.png
 *.log
+
+# Información del VPS (contiene IPs y configuración sensible)
+VPS_INFO.md
+CAMBIOS_IP_VPS.md
+
+# Archivos temporales de despliegue
+deploy_*.zip

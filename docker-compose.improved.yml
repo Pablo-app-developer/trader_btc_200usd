@@ -1,14 +1,16 @@
 version: '3.8'
 
 services:
-  trader_btc_200usd:
+  trader_btc:
+    build: .
     image: antigravity-bot:latest
-    container_name: trader_btc_200usd
+    container_name: trader_btc
     restart: unless-stopped
     volumes:
       - ./models:/app/models
       - ./run_live_trader.py:/app/run_live_trader.py
       - ./config:/app/config
+      - ./datos_btc_15m_binance.csv:/app/datos_btc_15m_binance.csv
       - ./tensorboard_logs:/app/tensorboard_logs
     command: python run_live_trader.py BTC
     environment:
@@ -18,20 +20,29 @@ services:
       resources:
         limits:
           memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import os; exit(0 if os.path.exists('live_trader.log') and os.path.getsize('live_trader.log') > 0 else 1)" ]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  trader_eth_200usd:
+  trader_eth:
     image: antigravity-bot:latest
-    container_name: trader_eth_200usd
+    container_name: trader_eth
     restart: unless-stopped
     volumes:
       - ./models:/app/models
       - ./run_live_trader.py:/app/run_live_trader.py
       - ./config:/app/config
+      - ./datos_eth_15m_binance.csv:/app/datos_eth_15m_binance.csv
       - ./tensorboard_logs:/app/tensorboard_logs
     command: python run_live_trader.py ETH
     environment:
@@ -41,20 +52,29 @@ services:
       resources:
         limits:
           memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import os; exit(0 if os.path.exists('live_trader.log') and os.path.getsize('live_trader.log') > 0 else 1)" ]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  trader_sol_200usd:
+  trader_sol:
     image: antigravity-bot:latest
-    container_name: trader_sol_200usd
+    container_name: trader_sol
     restart: unless-stopped
     volumes:
       - ./models:/app/models
       - ./run_live_trader.py:/app/run_live_trader.py
       - ./config:/app/config
+      - ./datos_sol_15m_binance.csv:/app/datos_sol_15m_binance.csv
       - ./tensorboard_logs:/app/tensorboard_logs
     command: python run_live_trader.py SOL
     environment:
@@ -64,23 +84,49 @@ services:
       resources:
         limits:
           memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import os; exit(0 if os.path.exists('live_trader.log') and os.path.getsize('live_trader.log') > 0 else 1)" ]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  board_200usd:
+  tensorboard:
     image: tensorflow/tensorflow:latest
-    container_name: board_200usd
+    container_name: antigravity_board
     restart: unless-stopped
-    command: tensorboard --logdir /logs --host 0.0.0.0
+    command: tensorboard --logdir /logs --host 0.0.0.0 --reload_interval 30
     volumes:
-      - ./tensorboard_logs:/logs
+      - ./tensorboard_logs:/logs:ro
     ports:
-      - "6007:6006" # Puerto cambiado a 6007 para no chocar con el otro proyecto
+      - "6006:6006"
+    environment:
+      - TZ=America/New_York
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:6006" ]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "2"
+
+networks:
+  default:
+    name: antigravity-network
