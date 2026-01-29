@@ -25,6 +25,11 @@ reports/*.png
 # Información del VPS (contiene IPs y configuración sensible)
 VPS_INFO.md
 CAMBIOS_IP_VPS.md
+deploy_to_vps.ps1
+aplicar_optimizacion.ps1
+revisar_operaciones.ps1
+revisar_operaciones.sh
 
 # Archivos temporales de despliegue
 deploy_*.zip
+*.bak
