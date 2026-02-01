@@ -56,9 +56,10 @@ class LiveTrader:
         self.wins = 0
         self.losses = 0
         
-        # Risk Config
+        # Risk Config (Optimized for $200 Account)
         self.cooldown_seconds = self.config.env_params.get("cooldown_steps", 8) * 15 * 60 # Steps * 15m * 60s
-        self.stop_loss_pct = self.config.env_params.get("stop_loss", 0.03)
+        self.stop_loss_pct = self.config.env_params.get("stop_loss", 0.015)  # 1.5% SL (was 3%)
+        self.take_profit_pct = 0.02  # 2% TP (NEW - Better Risk/Reward)
         self.last_sell_time = 0
 
     def check_prop_firm_rules(self, current_equity):
@@ -178,12 +179,19 @@ class LiveTrader:
         # Check Prop Firm Rules
         self.check_prop_firm_rules(current_equity)
 
-        # 1. MECHANICAL STOP LOSS CHECK
+        # 1. MECHANICAL TAKE PROFIT CHECK (NEW - Secure Profits!)
         if self.current_position == 1:
             pnl_pct = (price - self.entry_price) / self.entry_price
-            if pnl_pct <= -self.stop_loss_pct:
-                logger.warning(f"🛡️ STOP LOSS ACTIVADO a ${price:.2f} (Drop: {pnl_pct*100:.2f}%)")
-                action = 2 # Force Sell
+            
+            # Take Profit: Lock in gains at 2%
+            if pnl_pct >= self.take_profit_pct:
+                logger.info(f"🎯 TAKE PROFIT ACTIVADO a ${price:.2f} (Ganancia: +{pnl_pct*100:.2f}%)")
+                action = 2  # Force Sell
+            
+            # Stop Loss: Cut losses at 1.5%
+            elif pnl_pct <= -self.stop_loss_pct:
+                logger.warning(f"🛡️ STOP LOSS ACTIVADO a ${price:.2f} (Pérdida: {pnl_pct*100:.2f}%)")
+                action = 2  # Force Sell
         
         # 2. COOLDOWN CHECK
         if action == 1 and self.current_position == 0:
