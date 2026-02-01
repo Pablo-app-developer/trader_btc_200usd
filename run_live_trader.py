@@ -29,7 +29,7 @@ class LiveTrader:
         self.config = get_asset_config(self.symbol)
         
         # TensorBoard Logger (Gráficas estilo FTMO)
-        log_dir = f"tensorboard_logs/LIVE_{self.symbol}"
+        log_dir = f"tensorboard_logs/LIVE_{self.symbol}_200USD"
         self.writer = SummaryWriter(log_dir)
         logger.info(f"📊 TensorBoard activo en: {log_dir}")
 
