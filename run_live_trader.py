@@ -48,9 +48,9 @@ class LiveTrader:
         self.current_position = 0 # 0: Nada, 1: Long
         self.entry_price = 0.0
         
-        # Prop Firm Tracking (Simulated $100k Account)
-        self.sim_balance = 100000.0
-        self.daily_start_balance = 100000.0
+        # Prop Firm Tracking (Simulated $200 Account - RETO)
+        self.sim_balance = 200.0
+        self.daily_start_balance = 200.0
         self.last_day_checked = datetime.now().day
         self.max_daily_loss = 0.0
         self.wins = 0
