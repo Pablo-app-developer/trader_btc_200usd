@@ -3,6 +3,7 @@
 .env
 *.env
 secrets.json
+telegram_config.json
 config.py
 *.key
 *.pem

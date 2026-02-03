@@ -1,5 +1,6 @@
 import time
 import os
+import json
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -8,6 +9,7 @@ from datetime import datetime
 from stable_baselines3 import PPO
 from config import get_asset_config
 from torch.utils.tensorboard import SummaryWriter
+from telegram_notifier import TelegramNotifier
 
 # Configuración de Logging
 logging.basicConfig(
@@ -61,6 +63,29 @@ class LiveTrader:
         self.stop_loss_pct = self.config.env_params.get("stop_loss", 0.015)  # 1.5% SL (was 3%)
         self.take_profit_pct = 0.02  # 2% TP (NEW - Better Risk/Reward)
         self.last_sell_time = 0
+        
+        # Telegram Notifications
+        self.notifier = self._init_telegram()
+        
+    def _init_telegram(self):
+        """Initialize Telegram notifier from config file"""
+        try:
+            config_path = "telegram_config.json"
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    telegram_config = config.get('telegram', {})
+                    if telegram_config.get('enabled', False):
+                        return TelegramNotifier(
+                            bot_token=telegram_config['bot_token'],
+                            chat_id=telegram_config['chat_id'],
+                            enabled=True
+                        )
+            logger.info("Telegram notifications disabled or config not found")
+            return TelegramNotifier("", "", enabled=False)
+        except Exception as e:
+            logger.error(f"Failed to initialize Telegram: {e}")
+            return TelegramNotifier("", "", enabled=False)
 
     def check_prop_firm_rules(self, current_equity):
         # Reset Daily Drawdown Logic
@@ -186,11 +211,13 @@ class LiveTrader:
             # Take Profit: Lock in gains at 2%
             if pnl_pct >= self.take_profit_pct:
                 logger.info(f"🎯 TAKE PROFIT ACTIVADO a ${price:.2f} (Ganancia: +{pnl_pct*100:.2f}%)")
+                self.notifier.notify_take_profit(self.symbol, price, pnl_pct*100)
                 action = 2  # Force Sell
             
             # Stop Loss: Cut losses at 1.5%
             elif pnl_pct <= -self.stop_loss_pct:
                 logger.warning(f"🛡️ STOP LOSS ACTIVADO a ${price:.2f} (Pérdida: {pnl_pct*100:.2f}%)")
+                self.notifier.notify_stop_loss(self.symbol, price, pnl_pct*100)
                 action = 2  # Force Sell
         
         # 2. COOLDOWN CHECK
@@ -204,6 +231,7 @@ class LiveTrader:
 
             logger.info(f"🟢 [COMPRA] SEÑAL DETECTADA a ${price:.2f} ({now_str})")
             logger.info(f"   👉 Sugerencia: Abrir LONG en {self.symbol}")
+            self.notifier.notify_buy(self.symbol, price, self.sim_balance)
             self.current_position = 1
             self.entry_price = price
             
@@ -222,6 +250,16 @@ class LiveTrader:
             
             logger.info(f"   💰 Cierre. PnL: {pnl_pct*100:.2f}% | Balance Sim: ${self.sim_balance:.2f}")
             logger.info(f"   📊 ESTADO: WinRate: {win_rate:.1f}% | DD Diario Max: {self.max_daily_loss:.2f}%")
+            
+            # Telegram Notification
+            self.notifier.notify_sell(
+                self.symbol, 
+                self.entry_price, 
+                price, 
+                pnl_pct*100, 
+                pnl_amount, 
+                self.sim_balance
+            )
 
             # TENSORBOARD GRAPHING
             try:
