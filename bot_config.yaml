@@ -1,0 +1,82 @@
+# Trading Bot Configuration
+# Edit this file to change bot parameters without touching the code
+
+# Trading Configuration
+trading:
+  capital_initial: 200  # Starting capital in USD
+  max_position_size: 0.95  # Maximum % of capital to use per trade
+  
+# Risk Management
+risk_management:
+  stop_loss_pct: 0.015  # 1.5% stop loss
+  take_profit_pct: 0.02  # 2% take profit
+  max_daily_drawdown: 0.05  # 5% maximum daily loss
+  cooldown_minutes: 120  # Minutes to wait between trades
+  
+# Asset-Specific Settings
+assets:
+  SOL:
+    enabled: true
+    ema_period: 23
+    breakout_period: 35
+    custom_stop_loss: 0.015  # Override global SL if needed
+    custom_take_profit: 0.02  # Override global TP if needed
+    
+  ETH:
+    enabled: true
+    ema_period: 50
+    breakout_period: 40
+    custom_stop_loss: 0.015
+    custom_take_profit: 0.02
+    
+  BTC:
+    enabled: true
+    ema_period: 50
+    breakout_period: 45
+    custom_stop_loss: 0.015
+    custom_take_profit: 0.02
+
+# Notifications
+notifications:
+  telegram:
+    enabled: true
+    config_file: "telegram_config.json"
+    notify_on_buy: true
+    notify_on_sell: true
+    notify_on_stop_loss: true
+    notify_on_take_profit: true
+    notify_on_error: true
+    daily_summary: true
+    daily_summary_time: "23:59"  # HH:MM format
+
+# Database
+database:
+  enabled: true
+  path: "trading_bot.db"
+  backup_enabled: true
+  backup_frequency_hours: 24
+
+# Monitoring
+monitoring:
+  tensorboard:
+    enabled: true
+    port: 6007
+    log_dir: "tensorboard_logs"
+  
+  healthcheck:
+    enabled: false  # Future feature
+    port: 5000
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "live_trader.log"
+  max_file_size_mb: 10
+  backup_count: 5
+
+# Advanced Settings (Don't change unless you know what you're doing)
+advanced:
+  data_source: "yfinance"  # yfinance, binance, etc.
+  timeframe: "15m"
+  window_size: 60  # Number of candles for observation
+  update_interval_seconds: 60

@@ -23,6 +23,12 @@ tensorboard_logs/
 reports/*.png
 *.log
 
+# Database files (contain trading history)
+*.db
+*.db-journal
+*_export.json
+test_*.db
+
 # Información del VPS (contiene IPs y configuración sensible)
 VPS_INFO.md
 CAMBIOS_IP_VPS.md
