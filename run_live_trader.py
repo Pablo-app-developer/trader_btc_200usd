@@ -10,6 +10,8 @@ from stable_baselines3 import PPO
 from config import get_asset_config
 from torch.utils.tensorboard import SummaryWriter
 from telegram_notifier import TelegramNotifier
+from trading_database import TradingDatabase
+from config_loader import load_bot_config
 
 # Configuración de Logging
 logging.basicConfig(
@@ -28,7 +30,16 @@ class LiveTrader:
         # Mapping symbol to Yahoo Ticker
         self.yahoo_ticker = f"{self.symbol}-USD"
         
+        # Load YAML Configuration
+        self.bot_config = load_bot_config()
+        logger.info(f"⚙️ Configuration loaded from YAML")
+        
+        # Old config (for compatibility)
         self.config = get_asset_config(self.symbol)
+        
+        # Database for persistent storage
+        self.db = TradingDatabase("trading_bot.db")
+        logger.info(f"💾 Database connected")
         
         # TensorBoard Logger (Gráficas estilo FTMO)
         log_dir = f"tensorboard_logs/LIVE_{self.symbol}_200USD"
@@ -49,20 +60,30 @@ class LiveTrader:
         self.window_size = 60
         self.current_position = 0 # 0: Nada, 1: Long
         self.entry_price = 0.0
+        self.trade_start_time = None
         
-        # Prop Firm Tracking (Simulated $200 Account - RETO)
-        self.sim_balance = 200.0
-        self.daily_start_balance = 200.0
+        # Load configuration from YAML
+        initial_capital = self.bot_config.get('trading', 'capital_initial', default=200)
+        
+        # Prop Firm Tracking (From YAML Config)
+        self.sim_balance = float(initial_capital)
+        self.daily_start_balance = float(initial_capital)
         self.last_day_checked = datetime.now().day
         self.max_daily_loss = 0.0
         self.wins = 0
         self.losses = 0
         
-        # Risk Config (Optimized for $200 Account)
-        self.cooldown_seconds = self.config.env_params.get("cooldown_steps", 8) * 15 * 60 # Steps * 15m * 60s
-        self.stop_loss_pct = self.config.env_params.get("stop_loss", 0.015)  # 1.5% SL (was 3%)
-        self.take_profit_pct = 0.02  # 2% TP (NEW - Better Risk/Reward)
+        # Risk Config (From YAML - Asset-specific or global)
+        self.stop_loss_pct = self.bot_config.get_stop_loss(self.symbol)
+        self.take_profit_pct = self.bot_config.get_take_profit(self.symbol)
+        cooldown_minutes = self.bot_config.get('risk_management', 'cooldown_minutes', default=120)
+        self.cooldown_seconds = cooldown_minutes * 60
         self.last_sell_time = 0
+        
+        logger.info(f"🎯 Risk Config: SL={self.stop_loss_pct*100:.1f}%, TP={self.take_profit_pct*100:.1f}%")
+        
+        # Try to recover previous state from database
+        self._recover_state()
         
         # Telegram Notifications
         self.notifier = self._init_telegram()
@@ -86,6 +107,36 @@ class LiveTrader:
         except Exception as e:
             logger.error(f"Failed to initialize Telegram: {e}")
             return TelegramNotifier("", "", enabled=False)
+    
+    def _recover_state(self):
+        """Recover bot state from database after restart"""
+        try:
+            state = self.db.get_bot_state(self.symbol)
+            if state:
+                self.sim_balance = state['balance']
+                self.current_position = state['position']
+                self.entry_price = state['entry_price'] or 0.0
+                self.wins = state['wins']
+                self.losses = state['losses']
+                logger.info(f"🔄 State recovered: Balance=${self.sim_balance:.2f}, Position={self.current_position}, W/L={self.wins}/{self.losses}")
+            else:
+                logger.info(f"📝 No previous state found. Starting fresh.")
+        except Exception as e:
+            logger.error(f"Failed to recover state: {e}")
+    
+    def _save_state(self):
+        """Save current bot state to database"""
+        try:
+            self.db.update_bot_state(
+                symbol=self.symbol,
+                balance=self.sim_balance,
+                position=self.current_position,
+                entry_price=self.entry_price,
+                wins=self.wins,
+                losses=self.losses
+            )
+        except Exception as e:
+            logger.error(f"Failed to save state: {e}")
 
     def check_prop_firm_rules(self, current_equity):
         # Reset Daily Drawdown Logic
@@ -234,6 +285,19 @@ class LiveTrader:
             self.notifier.notify_buy(self.symbol, price, self.sim_balance)
             self.current_position = 1
             self.entry_price = price
+            self.trade_start_time = now_dt
+            
+            # Log BUY to database
+            try:
+                self.db.log_trade(
+                    symbol=self.symbol,
+                    action='BUY',
+                    entry_price=price,
+                    balance_after=self.sim_balance
+                )
+                self._save_state()
+            except Exception as e:
+                logger.error(f"Failed to log BUY trade: {e}")
             
         elif action == 2 and self.current_position > 0:
             logger.info(f"🔴 [VENTA] SEÑAL DETECTADA a ${price:.2f} ({now_str})")
@@ -260,6 +324,38 @@ class LiveTrader:
                 pnl_amount, 
                 self.sim_balance
             )
+            
+            # Calculate trade duration
+            trade_duration = 0
+            if self.trade_start_time:
+                duration_delta = now_dt - self.trade_start_time
+                trade_duration = int(duration_delta.total_seconds() / 60)  # minutes
+            
+            # Determine reason
+            reason = ""
+            if pnl_pct >= self.take_profit_pct:
+                reason = "Take Profit"
+            elif pnl_pct <= -self.stop_loss_pct:
+                reason = "Stop Loss"
+            else:
+                reason = "Manual/Signal"
+            
+            # Log SELL to database
+            try:
+                self.db.log_trade(
+                    symbol=self.symbol,
+                    action='SELL',
+                    entry_price=self.entry_price,
+                    exit_price=price,
+                    pnl_pct=pnl_pct * 100,
+                    pnl_usd=pnl_amount,
+                    balance_after=self.sim_balance,
+                    reason=reason,
+                    trade_duration_minutes=trade_duration
+                )
+                self._save_state()
+            except Exception as e:
+                logger.error(f"Failed to log SELL trade: {e}")
 
             # TENSORBOARD GRAPHING
             try:
