@@ -1,13 +1,7 @@
-# Requirements for Phase 3: Dashboard + Healthcheck
-
-# Dashboard
 streamlit>=1.28.0
 plotly>=5.17.0
-
-# Healthcheck API
 flask>=3.0.0
 psutil>=5.9.0
-
-# Already installed (from previous phases)
-# pyyaml>=6.0
-# requests>=2.31.0
+pyyaml>=6.0
+requests>=2.31.0
+pandas>=1.5.0

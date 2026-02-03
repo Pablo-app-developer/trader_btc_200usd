@@ -1,86 +1,63 @@
 version: '3.8'
 
 services:
-  trader_btc_200usd:
-    image: antigravity-bot:latest
-    container_name: trader_btc_200usd
-    restart: unless-stopped
-    volumes:
-      - ./models:/app/models
-      - ./run_live_trader.py:/app/run_live_trader.py
-      - ./config:/app/config
-      - ./tensorboard_logs:/app/tensorboard_logs
-    command: python run_live_trader.py BTC
-    environment:
-      - TZ=America/New_York
-      - PYTHONUNBUFFERED=1
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  trader_eth_200usd:
-    image: antigravity-bot:latest
-    container_name: trader_eth_200usd
-    restart: unless-stopped
-    volumes:
-      - ./models:/app/models
-      - ./run_live_trader.py:/app/run_live_trader.py
-      - ./config:/app/config
-      - ./tensorboard_logs:/app/tensorboard_logs
-    command: python run_live_trader.py ETH
-    environment:
-      - TZ=America/New_York
-      - PYTHONUNBUFFERED=1
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  trader_sol_200usd:
-    image: antigravity-bot:latest
+  # --- TRADING BOTS ---
+  trader_sol:
+    image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
     container_name: trader_sol_200usd
-    restart: unless-stopped
+    restart: always
+    working_dir: /app
     volumes:
-      - ./models:/app/models
-      - ./run_live_trader.py:/app/run_live_trader.py
-      - ./config:/app/config
-      - ./tensorboard_logs:/app/tensorboard_logs
-    command: python run_live_trader.py SOL
+      - ./:/app  # SHARE EVERYTHING: Code, DB, Config
+    command: sh -c "pip install pandas numpy yfinance stable-baselines3 tensorboard psutil flask schedule pyyaml plotly streamlit && python run_live_trader.py SOL"
     environment:
       - TZ=America/New_York
-      - PYTHONUNBUFFERED=1
     deploy:
       resources:
         limits:
-          memory: 1G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          memory: 2048M
 
-  board_200usd:
-    image: tensorflow/tensorflow:latest
-    container_name: board_200usd
-    restart: unless-stopped
-    command: tensorboard --logdir /logs --host 0.0.0.0
+  trader_eth:
+    image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+    container_name: trader_eth_200usd
+    restart: always
+    working_dir: /app
     volumes:
-      - ./tensorboard_logs:/logs
+      - ./:/app
+    command: sh -c "pip install pandas numpy yfinance stable-baselines3 tensorboard psutil flask schedule pyyaml plotly streamlit && python run_live_trader.py ETH"
+    environment:
+      - TZ=America/New_York
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+
+  trader_btc:
+    image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+    container_name: trader_btc_200usd
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "pip install pandas numpy yfinance stable-baselines3 tensorboard psutil flask schedule pyyaml plotly streamlit && python run_live_trader.py BTC"
+    environment:
+      - TZ=America/New_York
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+
+  # --- DASHBOARD & MONITORING ---
+  dashboard:
+    image: python:3.10-slim
+    container_name: dashboard_200usd
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./:/app
     ports:
-      - "6007:6006" # Puerto cambiado a 6007 para no chocar con el otro proyecto
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
+      - "8501:8501" # Streamlit
+      - "5000:5000" # Healthcheck
+    command: sh -c "pip install -r requirements_phase3.txt && python healthcheck.py & streamlit run dashboard.py"
+    environment:
+      - TZ=America/New_York
