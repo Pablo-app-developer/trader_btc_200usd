@@ -38,7 +38,7 @@ class LiveTrader:
         self.config = get_asset_config(self.symbol)
         
         # Database for persistent storage
-        self.db = TradingDatabase("trading_bot.db")
+        self.db = TradingDatabase(f"trading_bot_{self.symbol.lower()}.db")
         logger.info(f"💾 Database connected")
         
         # TensorBoard Logger (Gráficas estilo FTMO)
@@ -154,8 +154,11 @@ class LiveTrader:
             self.max_daily_loss = daily_drawdown
 
         # Warnings (FTMO/MFF limits usually 5% daily, 10% total)
-        if daily_drawdown > 4.0:
-            logger.warning(f"⚠️ PELIGRO PROP FIRM: Drawdown Diario al {daily_drawdown:.2f}% (Límite 5%)")
+        max_dd_limit = self.bot_config.get('risk_management', 'max_daily_drawdown', default=0.05) * 100
+        
+        # Warnings
+        if daily_drawdown > (max_dd_limit * 0.8): # Warn at 80% of limit
+            logger.warning(f"⚠️ PELIGRO PROP FIRM: Drawdown Diario al {daily_drawdown:.2f}% (Límite {max_dd_limit:.1f}%)")
         
         return daily_drawdown
 

@@ -1,6 +1,6 @@
 # Script de conexión SSH al VPS
 # IP del VPS
-$VPS_IP = "107.174.133.202"
+$VPS_IP = "107.174.133.37"
 $VPS_USER = "root"
 
 Write-Host "🚀 Conectando al VPS en $VPS_IP..." -ForegroundColor Green

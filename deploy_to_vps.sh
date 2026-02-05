@@ -2,7 +2,7 @@
 # Script de despliegue automático al VPS
 # Este script sincroniza el código local con el VPS y reinicia el bot
 
-VPS_IP="107.174.133.202"
+VPS_IP="107.174.133.37"
 VPS_USER="root"
 VPS_DIR="/root/sol-bot-200"
 

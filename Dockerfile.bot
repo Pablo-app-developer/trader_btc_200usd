@@ -1,0 +1,31 @@
+FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    pandas \
+    numpy \
+    yfinance \
+    stable-baselines3 \
+    tensorboard \
+    psutil \
+    flask \
+    schedule \
+    pyyaml \
+    plotly \
+    streamlit
+
+# Copy code
+COPY . /app/
+
+# Set timezone
+ENV TZ=America/New_York
+
+# Default command
+CMD ["python", "run_live_trader.py", "SOL"]

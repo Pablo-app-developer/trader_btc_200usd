@@ -3,45 +3,45 @@ version: '3.8'
 services:
   # --- TRADING BOTS ---
   trader_sol:
-    image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
     container_name: trader_sol_200usd
     restart: always
     working_dir: /app
     volumes:
-      - ./:/app  # SHARE EVERYTHING: Code, DB, Config
-    command: sh -c "pip install pandas numpy yfinance stable-baselines3 tensorboard psutil flask schedule pyyaml plotly streamlit && python run_live_trader.py SOL"
-    environment:
-      - TZ=America/New_York
+      - ./:/app
+    command: python run_live_trader.py SOL
     deploy:
       resources:
         limits:
           memory: 2048M
 
   trader_eth:
-    image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
     container_name: trader_eth_200usd
     restart: always
     working_dir: /app
     volumes:
       - ./:/app
-    command: sh -c "pip install pandas numpy yfinance stable-baselines3 tensorboard psutil flask schedule pyyaml plotly streamlit && python run_live_trader.py ETH"
-    environment:
-      - TZ=America/New_York
+    command: python run_live_trader.py ETH
     deploy:
       resources:
         limits:
           memory: 2048M
 
   trader_btc:
-    image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
     container_name: trader_btc_200usd
     restart: always
     working_dir: /app
     volumes:
       - ./:/app
-    command: sh -c "pip install pandas numpy yfinance stable-baselines3 tensorboard psutil flask schedule pyyaml plotly streamlit && python run_live_trader.py BTC"
-    environment:
-      - TZ=America/New_York
+    command: python run_live_trader.py BTC
     deploy:
       resources:
         limits:
@@ -49,7 +49,9 @@ services:
 
   # --- DASHBOARD & MONITORING ---
   dashboard:
-    image: python:3.10-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
     container_name: dashboard_200usd
     restart: always
     working_dir: /app
@@ -58,6 +60,4 @@ services:
     ports:
       - "8501:8501" # Streamlit
       - "5000:5000" # Healthcheck
-    command: sh -c "pip install -r requirements_phase3.txt && python healthcheck.py & streamlit run dashboard.py"
-    environment:
-      - TZ=America/New_York
+    command: sh -c "python healthcheck.py & streamlit run dashboard.py"

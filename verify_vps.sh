@@ -2,7 +2,7 @@
 # Script de verificación rápida de conectividad VPS
 # Prueba la conexión SSH y los servicios principales
 
-VPS_IP="107.174.133.202"
+VPS_IP="107.174.133.37"
 VPS_USER="root"
 
 echo "🔍 === VERIFICACIÓN DE CONECTIVIDAD VPS ==="

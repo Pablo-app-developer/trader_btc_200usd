@@ -43,28 +43,48 @@ st.markdown("""
 
 @st.cache_resource
 def get_database():
-    """Get database connection"""
-    db_path = "trading_bot.db"
-    if not os.path.exists(db_path):
-        st.warning(f"⚠️ Database not found: {db_path}")
+    """Get database connections for all bots"""
+    databases = {}
+    for symbol in ['sol', 'eth', 'btc']:
+        db_path = f"trading_bot_{symbol}.db"
+        if os.path.exists(db_path):
+            databases[symbol.upper()] = TradingDatabase(db_path)
+        else:
+            st.warning(f"⚠️ Database not found: {db_path}")
+    
+    if not databases:
         return None
-    return TradingDatabase(db_path)
+    return databases
 
 @st.cache_data(ttl=60)
 def load_data():
-    """Load data from database"""
-    db = get_database()
-    if db is None:
+    """Load data from all databases"""
+    databases = get_database()
+    if databases is None:
         return None, None, None
     
-    recent_trades = db.get_recent_trades(limit=100)
-    performance = db.get_performance_summary(days=30)
-    
+    all_trades = []
     stats = {}
-    for symbol in ['SOL', 'ETH', 'BTC']:
+    
+    for symbol, db in databases.items():
+        # Get trades from this bot's database
+        trades = db.get_recent_trades(limit=100)
+        all_trades.extend(trades)
+        
+        # Get statistics
         stats[symbol] = db.get_statistics(symbol)
     
-    return recent_trades, performance, stats
+    # Sort all trades by timestamp
+    all_trades.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    # Calculate overall performance
+    performance = {
+        'total_trades': len([t for t in all_trades if t['action'] == 'SELL']),
+        'total_pnl': sum([t.get('pnl_usd', 0) for t in all_trades if t['action'] == 'SELL']),
+    }
+    
+    return all_trades, performance, stats
+
 
 def create_balance_chart(trades_df, symbol):
     """Create balance evolution chart"""

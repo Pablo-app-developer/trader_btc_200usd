@@ -217,7 +217,7 @@ cmd_tensorboard() {
     
     success "TensorBoard iniciado"
     info "Accede en: http://localhost:$port"
-    info "o en VPS: http://107.174.133.202:$port"
+    info "o en VPS: http://107.174.133.37:$port"
 }
 
 cmd_backup() {

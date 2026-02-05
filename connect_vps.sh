@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script de conexión SSH al VPS
 
-VPS_IP="107.174.133.202"
+VPS_IP="107.174.133.37"
 VPS_USER="root"
 
 echo "🚀 Conectando al VPS en $VPS_IP..."
